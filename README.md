@@ -23,12 +23,11 @@ player
 Sample Code
 ===========
 This is a small hello world type game, where we deal a standard deck of card to four players. Each play alternatively till they exhaust all their card and the highest point getter wins. Points is same as rank (1-13), if there is a tie we break it with highest card suit, whoever has highest suit of King(13). The ranking of suit is say (Diamond > Heart > Spade > Club).
-
-# I am using .cg extension for card game source
+I am using .cg extension for card game source
+```
 HighCard.cg
------------
-# This is comment
-# 
+#### This is comment
+#### 
 init() {
     deck d shuffle
     player p1 p2 p3 p4
@@ -55,3 +54,4 @@ while (card left) {
     if win()
         out player    
 }
+```
