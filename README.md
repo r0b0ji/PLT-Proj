@@ -7,9 +7,10 @@ Introduction
 This document is about the card game language idea. First and foremost we need to make it very clear that it is not poker or blackjack or any card game, which I see people are confusing it with. For ex: VHDL is not a description of some circuit. It is a cirduit description language and any general circuit can be descibed in this language. Likewise this is a card description language and we can make our own little game or one can code a more esoteric game like poker in it. We need to provide enough language constructs and data types which a card game player or developer may be familiar with.
 
 After making this clear we need to figure out the data types, operations on data, language constructs to be supported, source code syntax and all.
-```
+
 DataType
 ========
+```
 datatypes       operations supported                description
 rank            count, compare                      
 suit            count, compare
