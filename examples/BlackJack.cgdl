@@ -1,0 +1,160 @@
+        
+** BlackJack Card Game in CGDL **
+                                                             
+number STD_RANK = 13;
+number STD_SUIT = 4;
+
+main {
+    	deck.add(STD_RANK, STD_SUIT); 
+	generateDeckPile();
+	deckPile.shuffle();
+    
+	addPlayerAttribute_int(amount);
+    	addPlayerAttribute_int(bet);
+    	addPlayerAttribute_bool(active);
+	addPlayerAttribute_string(name);
+
+	numPlayers = queryInt("How many players?");
+	Player players[numPlayers];
+	
+	forEach player in players {
+		player.name = queryString("Enter player name");
+	}
+	
+	forEach player in players {
+		 player.amount = 500;
+	}
+
+	Player winner = null; ** add into grammar **
+	repeat {
+		forEach player in players {
+			deckPile.putAtEnd(player.hand); ** clears hand **
+		}
+		playRound();
+		
+		Player currWinner = null;
+		number playersLeft = 0;
+		forEach player in players {
+			if (!player.active) then {
+				loopback;
+			}
+			playersLeft = playersLeft + 1;
+			if (currWinner == null or
+				player.amount > currWinner.amount) then {
+				currWinner = player;
+			}
+		}
+		if (playersLeft == 1) then {
+			winner = currWinner;
+		}
+	} until (winner != null);
+	
+	message(winner.name + " wins!!");
+}
+
+none playRound() {
+	forEach player in players {
+		if (!player.active) then {
+			loopback;
+		}
+		Card first = deckPile.get_from_front();
+		player.hand.put_at_end(first);
+		first.visibility = all;   
+		Card second = deckPile.get_from_front();
+		player.hand.put_at_end(second); ** second card only visible **
+						** to player **
+	}
+
+	** betting **
+	forEach player in players {
+		if (!player.active) then {
+			player.bet = 0;
+			loopback;
+		}
+		view(player);
+		player.bet = query_int("Place a bet.");
+		if (player.bet > player.amount) then {
+			player.bet = player.amount;
+		}
+		view(noOne);
+	}
+
+    	number highest_sum = 0;
+	forEach player in players {
+		if (!player.active) then {
+			loopback;
+		}
+	view(player);
+	string choice = "";
+        repeat {
+			choice = choose("hit", "stay");
+			if (choice == "hit") then {
+				player.hand.putAtEnd(deckPile.getFromTop());
+			}
+			number sum = calcValue(player.hand);
+			if (sum > highest_sum and sum <= 21) then {
+				highest_sum = sum;
+			}
+			view(noOne);
+		} until (choice == "stay" or calcValue(player.hand) >= 21); 
+	}
+
+    	** dealer plays **
+	Pile dealerHand;
+    	dealerHand.visibility = all;
+    	repeat {
+        	dealerHand.putAtEnd(deckPile.getFromEnd());
+	} until (calcValue(dealerHand) >= 17);
+
+	number sum = calcValue(dealerHand);
+	if (sum > 21) then {
+		return; ** round ends and no one loses money **
+	}
+	if (sum > highest_sum) then {
+		highest_sum = sum;
+	}
+
+	view(all); ** review everyone’s hand **
+    	forEach player in players {
+		if (!player.active) then {
+			loopback;
+		}
+		if (calcValue(player.hand) != highest_sum) then {
+			player.amount = player.amount - player.bet;
+			if (player.amount <= 0) then {
+				message("Sorry " + player.name + ", you lose.");
+				player.active = false;
+			}
+		}
+	}
+	view(noOne);
+}
+
+number calc_value(Pile pile) {
+    number sum = 0;
+    bool highAce = false;
+    forEach card in pile {
+        attribute rank rank = card.attributes[0];
+        if (rank >= getAttribute(2) and rank <= getAttribute(10)) then {
+			sum = sum + 2 + | rank - getAttribute(2) |;
+        }
+        else if (rank >= getAttribute(J) and rank <= getAttribute(K)) then {
+            sum = sum + 10;
+        }
+        else { ** Ace **
+            if (sum <= 10) then {
+				sum = sum + 11;
+				highAce = true;
+			}
+			else {
+				sum = sum + 1;
+				if (highAce and sum > 21) then {
+					sum = sum - 10;
+					high_ace = false;
+				}
+			}
+		}
+	}
+    return sum;
+}
+

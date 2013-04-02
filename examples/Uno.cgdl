@@ -1,0 +1,216 @@
+
+** Uno Card Game in CGDL **
+
+main {
+	attribute rank rank = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, Reverse, Skip,
+				DrawTwo};
+	attribute color color = {Red, Yellow, Green, Blue};
+
+	deck.add(rank[getAttribute(0)], color); ** only one 0 per color **
+
+	loop 2 { ** two of everything else per color **
+		deck.add(rank[getAttribute(1), getAttribute(DrawTwo)], color);
+	}
+
+ 	attribute Wild wild = {Wild, WildDrawFour};
+
+	loop 4 {
+		deck.add(wild);
+	}
+
+	generateDeckPile();
+	deckPile.shuffle();
+	
+	numPlayers = queryint("How many players?");
+	
+	Player winner = null;
+
+	repeat {
+		playGame();
+		forEach player in players {
+			player.points = player.points + calcPoints(player.hand);
+		}
+		
+		bool end = false;
+
+		forEach player in players {
+			if (player.points >= 500) then {
+				end = true;
+			}
+		}
+
+		if (end) then {
+			forEach player in players {
+				if (!winner or player.points < winner.points)
+									then {
+					winner = player;
+				}
+			}
+		}
+	} until (winner != null) ;
+
+	message("Game Over!!");
+}
+
+number calcPoints(Pile pile) {
+
+	number points = 0;
+
+	forEach card in pile {
+
+		if (card.hasAttribute(Wild) or
+			card.hasAttribute(WildDrawFour)) then {			
+			points = points + 50;
+		}
+		else if (card.suit(0).value > 9) then {
+			points = points + 20;
+		}
+		else {
+			points = points + card.suit(0).value;
+		}
+	}
+
+	return points;
+}
+
+attribute AttrChoice attrChoice = null; ** global **
+
+bool tryPlay(Card card) {
+	if (right(card.color) and right(card.num)) then ** Here card.number **
+							** can't be used as **
+							** number is a **
+							** keyword **
+		return true;
+	
+	return false;
+}
+
+none playOrDraw() {
+	bool played = false;
+
+	repeat {	
+		string choice = choose("play", "draw");
+
+		if (choice == "play") then {
+			number cardChoice = queryint("Which Card?");
+			** choose by displayed index **
+			if (tryPlay(player.hand.getNth(cardChoice))) then {
+				played = true;
+			}
+		}
+		else { ** draw card **
+			player.hand.putAtEnd(deckPile.getFromFront());
+			message("Play it?");
+			string playChoice = choose("Yes", "No");
+			if (playChoice == "Yes") then {
+				tryPlay(player.hand.getFromEnd());
+			}
+			played = true;
+		}
+	} until (played); 
+}
+
+none playGame() {
+	bool reversed = false;
+	
+	forEach player in players {
+		player.hand.clear();
+	}
+
+	deckPile = pile(deck);
+
+	loop 7 {
+		forEach player in players {
+			player.hand.putAtEnd(deckPile.getFromFront);
+		}
+	}
+
+	currPlayer = 0;
+
+	** Pile playPile = Pile(visibility: front_card); **
+	** Assuming above as under. Feel free to change as needed as **
+	** per CGDL syntax **
+	playPile.front_card.visibility = self; ** Change this to all or **
+					** noOne as needed. Just for example **
+					** have mentioned this. **
+						
+	bool ok = false;
+
+	repeat {
+		Card card = deckPile.getFromFront();
+		playPile.putAtFront(card);
+
+		if (!card.hasAttribute(Wild) and
+				!card.hasAttribute(WildDrawFour)
+				and card.suit[0].value <= 9) then {
+				** got number card **
+			ok = true;
+			attrChoice = card.suit[1];
+		}
+	} until (ok);
+ 
+	Player winner = null;
+
+	repeat {
+		Card lastCard = playPile.getFromFront();
+
+		message("Last card was " + lastCard);
+
+		forEach player in players {
+			view(player);
+		
+			** draw cards **
+			if (lastCard.hasAttribute(DrawTwo)) then {
+				loop 2 {
+					player.hand.putAtEnd(deckPile.
+								getFromFront());
+				}
+			}
+			else if (lastCard.hasAttribute(WildDrawFour)) then {
+				loop 4 {
+					player.hand.putAtEnd(deckPile.
+								getFromFront());
+				}
+			}
+			else {
+				playOrDraw();
+			}
+			
+			view(noOne); ** for hand secrecy **
+			
+			Card cardPlayed = playPile.getFromFront();
+
+			if (cardPlayed.hasAttribute(Reverse)) then {
+				reversed.toggle();
+			}
+			else if (cardPlayed.hasAttribute(Skip)) then {
+				if (reversed) then {
+					currPlayer = currPlayer - 1;
+				}
+				else {
+					currPlayer = currPlayer + 1;
+				}
+			}
+			else if (cardPlayed.hasAttribute(Wild) or
+					cardPlayed.hasAttribute(WildDrawFour))
+									then {
+				string colorChoice = choose("Red", "Yellow",
+							"Green", "Blue");
+				attrChoice = getAttribute(colorChoice);
+			}
+			
+			if (player.hand.isEmpty()) then {
+				winner = player;
+				break; ** game is over **
+			}
+
+			if (reversed) then {
+				currPlayer = currPlayer - 1;
+			}
+			else {
+				currPlayer = currPlayer + 1;
+			}
+		}
+	} until (winner != null);
+}
+
