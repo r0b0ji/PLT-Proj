@@ -1,425 +1,269 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-
-int yyerror(char *s);
-void display(char *s, int line);
-
-#define __DEBUG__
-
-#ifdef __DEBUG__
-	#define print(nt) display(#nt, __LINE__)
-#else
-	#define print(nt)
-#endif
-
 %}
-
-%token ID STRING_LITERAL
-%token LE_OP GE_OP EQ_OP NE_OP 
-%token AND_OP OR_OP XOR_OP
-%token GLOBAL
-%token BOOLEAN NONE NUMBER STRING  RANK CARD PLAYER 
-        DECK PILE CONST
-%token CATALOG RECORD ATTRIBUTE
-%token NUMBER_CONSTANT BOOLEAN_CONSTANT NULL_CONSTANT
-%token FOREACH IN REPEAT UNTIL LOOP LOOPBACK ENDLOOP LOOKUP UNKNOWN KEY 
-       FALLTHROUGH ENDLOOKUP IF THEN ELSE RETURN
-
-%token UMINUS ALL NOONE SELF
-%start lines
-
-
+%token ADD SUB MUL DIV MOD 
+%token GRT GE LES LE EQ NE 
+%token ASS UMINUS NOT REFERENCE
+%token SEMI COLON COMMA
+%token AND OR XOR TRUE FALSE
+%token BOOL CATALOG ID CONSTANT RECORD NONE NUMBER STRING LITERAL
+%token CONST GLOBAL
+%token FOR EACH IS IN REPEAT UNTIL LOOP LOOPBACK ENDLOOP LOOKUP UNKNOWN KEY QUES
+%token IF THEN ELSE
+%token RETURN
 %%
 
-lines
-        : lines translation_unit '\n' { print(lines); }
-        | lines '\n' { print(lines); }
-        | /*empty*/ { print(lines); }
-       
+translation_unit: elements
+                | translation_unit elements
+                ;
 
-primary_expression
-	    : ID { print(primary_expression); }
-	    | NUMBER_CONSTANT { print(primary_expression); }
-	    | BOOLEAN_CONSTANT { print(primary_expression); }
-	    | NULL_CONSTANT { print(primary_expression); }
-        | STRING_LITERAL { print(primary_expression); }
-        | visibility_constant { print(primary_expression); }
-        | '|' expression '|' { print(primary_expression); }
+elements: function_definition
+        | procedure_definition
+        | declaration
         ;
 
-visibility_constant
-        : ALL { print(visibility_constant); }
-        | NOONE { print(visibility_constant); }
-        | SELF { print(visibility_constant); }
+function_definition: declaration_specifiers  declarator block_statement
+                    ;  
+
+procedure_definition: ID block_statement
+                    ;   
+
+primary_expression: ID
+                    | constant
+                    | string_literal
+                    | '('expression')'
+                    ;
+
+constant: NUMBER
+        | catalog_constant
+        | boolean_constant
         ;
 
-postfix_expression
-        : primary_expression { print(postfix_expression); }
-        | postfix_expression '[' expression ']' { print(postfix_expression); }
-        | postfix_expression '[' expression ':' expression ']' 
-                                                { print(postfix_expression); }
-	    | postfix_expression '(' ')' { print(postfix_expression); }
-        | postfix_expression '(' argument_expression_list ')'
-                                     { print(postfix_expression); }                     
-        | postfix_expression '.' ID { print(postfix_expression); }
+boolean_constant: TRUE
+                | FALSE
+                ;
+
+string_literal: '\"'LITERAL'\"'
+                ;
+
+postfix_expression: primary_expression
+                  | postfix_expression'[' expression ']'
+                  | postfix_expression'('argument_expression_list')'
+                  | postfix_expression'(' ')'
+                  | postfix_expression '.' ID /* is dot inside quote ? */
+                  ;
+
+argument_expression_list: assignment_expression
+                        | argument_expression_list COMMA assignment_expression
+                        ;
+
+unary_expression: unary_operator expression
+                ;
+
+unary_operator: UMINUS
+                | REFERENCE
+                | NOT
+                ;
+
+multiplicative_expression: postfix_expression
+                        | multiplicative_expression MUL expression
+                        | multiplicative_expression DIV expression
+                        | multiplicative_expression MOD expression
+                        ;
+
+additive_expression: multiplicative_expression
+                    | additive_expression ADD multiplicative_expression
+                    | additive_expression SUB multiplicative_expression
+                    ;
+
+relational_expression: additive_expression
+                    | relational_expression GRT additive_expression
+                    | relational_expression LES additive_expression
+                    | relational_expression GE additive_expression
+                    | relational_expression LE additive_expression
+                    ;
+
+equality_expression: relational_expression
+                    | equality_expression EQ relational_expression
+                    | equality_expression NE relational_expression
+                    ;
+
+logical_AND_expression: equality_expression
+                    | logical_AND_expression AND equality_expression
+                    ;
+
+logical_OR_expression: logical_AND_expression
+                    | logical_OR_expression OR logical_AND_expression
+                    ;
+
+logical_XOR_expression: logical_OR_expression
+                    | logical_XOR_expression XOR logical_XOR_expression  
+                    ;
+
+expression: assignment_expression
+          | expression COMMA assignment_expression
+          ;
+
+assignment_expression: logical_XOR_expression
+                    | unary_expression ASS assignment_expression
+                    ;
+    
+constant_expression: logical_XOR_expression
+                    ;
+
+declaration: declaration_specifiers declarator_list
+                    ;
+
+declaration_specifiers: storage_class_specifier declaration_specifiers
+                    | storage_class_specifier
+                    | type_specifier declaration_specifiers
+                    | type_specifier
+                    | qualifier declaration_specifiers
+                    | qualifier
+                    ;
+
+declarator_list: declarator
+                | declarator_list
+                ;
+
+storage_class_specifier: GLOBAL
+
+type_specifier: NONE
+                | STRING
+                | BOOL
+                | NUMBER
+                | record_specifier
+                | catalog_specifier
+                | suit_specifier
+                ;
+
+qualifier: CONST
         ;
 
+record_specifier: RECORD ID '{' record_declaration_list '}'
+                | RECORD ID
+                ;
 
-argument_expression_list
-        : assignment_expression { print(argument_expression_list); }
-        | argument_expression_list ',' assignment_expression
-                                { print(argument_expression_list); }   
+record_declaration_list: RECORD declaration
+                        | record_declaration_list RECORD declaration
+                        ;
+
+record_declaration: specifier_qualifier_list record_declarator_list SEMI 
+                    ;
+
+specifier_qualifier_list: type_specifier specifier_qualifier_list
+                        | type_specifier
+                        ;
+
+record_declarator_list: declarator
+                    | record_declarator_list COMMA declarator
+                    ;
+
+record_specifier: RECORD ID '{' record_declaration_list '}'
+                | RECORD ID
+                ;
+
+catalog_specifier: CATALOG ID '{' catalog_list '}'
+                | CATALOG '{' catalog_list '}'
+                | CATALOG ID
+                ;
+
+catalog_list: catalog_constant
+            | catalog_list COMMA catalog_constant
+            ;
+
+catalog_constant: ID
+                | ID ASS constant expression
+                ;
+
+declarator: ID
+          | declarator '[' constant_expression ']'
+          | declarator '[' ']'
+          | declarator '(' parameter_type_list ')'
+          | declarator '(' identifier_list ')'
+          | declarator '(' ')'
+          ;
+
+identifier_list: ID
+                | identifier_list COMMA ID
+                ;
+
+parameter_type_list: parameter_list 
+                    ;
+
+parameter_list: parameter_declaration
+                | parameter_list COMMA parameter_declaration
+                ;
+
+parameter_declaration: declaration_specifiers declarator
+                    ;
+
+initializer: assignment_expression
+            | '{' initializer_list '}'
+            ;
+
+initializer_list: initializer
+                | initializer_list COMMA initializer
+                ;
+
+suit_identifier: ID
+                ;
+
+suit_specifier: suit_identifier '{' suit_declaration_list '}'
+                | suit_identifier
+                ;
+
+suit_declaration_list: suit_declaration
+                    | suit_declaration_list COMMA suit_declaration SEMI
+                    ;
+
+suit_declaration: suit_identifier COLON  constant_expression
+                ;
+
+statement: labeled_statement
+        | expression_statement
+        | block_statement
+        | selection_statement
+        | iteration_statement
+        | jump_statement
         ;
 
-unary_expression
-	: postfix_expression { print(unary_expression); }
-        | unary_operator unary_expression { print(unary_expression); }
-        ;
+labeled_statement: KEY constant_expression QUES statement
+                | UNKNOWN QUES statement
+                ;
 
-unary_operator
-        : '@' { print(unary_expression); }
-        | UMINUS { print(unary_expression); }
-        | '!' { print(unary_expression); }
-        ;
+expression_statement: expression SEMI
+                    | SEMI
+                    ;
 
-multiplicative_expression
-        : unary_expression { print(multiplicative_expression); }
-        | multiplicative_expression '*' unary_expression
-        { print(multiplicative_expression); }
-        | multiplicative_expression '/' unary_expression
-        { print(multiplicative_expression); }
-        | multiplicative_expression '%' unary_expression
-        { print(multiplicative_expression); }
-        ;
+block_statement: '{' declaration_list   statement_list '}'
+                | '{' declaration_list '}'
+                | '{' statement_list '}'
+                | '{' '}'
+                ;
 
-additive_expression
-        : multiplicative_expression { print(additive_expression); }
-        | additive_expression '+' multiplicative_expression
-          { print(additive_expression); }
-        | additive_expression '-' multiplicative_expression
-          { print(additive_expression); }
-        ;
+declaration_list: declaration
+                | declaration_list declaration
+                ;
 
+statement_list: statement
+            | statement_list statement
+            ;
 
-relational_expression
-        : additive_expression { print(relational_expression); }
-        | relational_expression '<' additive_expression
-                { print(relational_expression); }
-        | relational_expression '>' additive_expression
-                { print(relational_expression); }
-        | relational_expression LE_OP additive_expression
-                { print(relational_expression); }
-        | relational_expression GE_OP additive_expression
-                { print(relational_expression); }
-        ;
+selection_statement: IF '(' expression ')' THEN statement
+                    | IF '(' expression ')' THEN statement ELSE statement
+                    | LOOKUP '(' expression ')' statement
+                    ;
 
-equality_expression
-        : relational_expression
-                { print(equality_expression); }        
-        | equality_expression EQ_OP relational_expression
-                { print(equality_expression); }        
-        | equality_expression NE_OP relational_expression
-                { print(equality_expression); }        
-        ;
+iteration_statement: REPEAT statement UNTIL '(' expression ')'
+                    | FOR EACH ID statement
+                    | FOR EACH ID IN ID statement
+                    | LOOP constant_expression statement
+                    ;
 
-logical_and_expression
-        : equality_expression
-                { print(logical_and_expression); }                
-        | logical_and_expression AND_OP equality_expression
-                { print(logical_and_expression); }                
-        ;
-
-logical_or_expression
-        : logical_and_expression
-                        { print(logical_or_expression); }        
-        | logical_or_expression OR_OP logical_and_expression
-                        { print(logical_or_expression); }        
-        ;
-
-logical_xor_expression
-	    : logical_or_expression
-                        { print(logical_xor_expression); }        	    
-        | logical_xor_expression XOR_OP logical_or_expression
-                        { print(logical_xor_expression); }                
-        ;
-
-assignment_expression
-        : logical_xor_expression
-                        { print(assignment_expression); }                        
-        | unary_expression '=' assignment_expression
-                        { print(assignment_expression); }                        
-        ;
-
-expression
-        : assignment_expression
-                        { print(expression); }                                
-        | expression ',' assignment_expression
-                        { print(expression); }                                
-        ;
-
-constant_expression
-        : logical_xor_expression { print(constant_expression); }                        ;
-
-declaration
-        : declaration_specifiers ';' { print(declaration); }                                
-        | declaration_specifiers init_declarator_list ';'
-                { print(declaration); }                                
-        ;
-
-declaration_specifiers
-        : storage_class_specifier
-                { print(declaration_specifiers); }                                        
-        | storage_class_specifier declaration_specifiers
-                { print(declaration_specifiers); }                                        
-        | type_specifier
-                { print(declaration_specifiers); }                                        
-        | type_specifier declaration_specifiers
-                { print(declaration_specifiers); }                                        
-        | type_qualifier
-                { print(declaration_specifiers); }                                        
-        | type_qualifier declaration_specifiers
-                { print(declaration_specifiers); }                                        
-        ;
-
-init_declarator_list
-        : init_declarator
-                        { print(init_declarator_list); }                                
-        | init_declarator_list ',' init_declarator
-                        { print(init_declarator_list); }                                
-        ;               
-
-init_declarator
-        : declarator
-                        { print(init_declarator); }                                        
-        | declarator '=' initializer { print(init_declarator); }
-                        { print(init_declarator); }                                        
-        ;
-
-storage_class_specifier
-        : GLOBAL { print(storage_class_specifier); }                                        
-        ;
-
-type_specifier
-	    : NONE { print(type_specifier); }                                        
-        | STRING { print(type_specifier); }                                         
-        | BOOLEAN { print(type_specifier); }                                        
-        | NUMBER { print(type_specifier); }                                        
-        | CARD { print(type_specifier); }                                        
-        | PLAYER { print(type_specifier); }                                         
-        | DECK { print(type_specifier); }                                        
-        | PILE { print(type_specifier); }                                        
-        | RANK { print(type_specifier); }                                        
-        | attribute_or_record_specifier { print(type_specifier); }                                        
-        | catalog_specifier { print(type_specifier); }                                        
-        ;
-
-attribute_or_record_specifier
-        : attribute_or_record ID '{' attribute_or_record_declaration_list '}'
-        { print(attribute_or_record_specifier); }                                        
-		| attribute_or_record ID
-		{ print(attribute_or_record_specifier); }                                        
-        ;
-attribute_or_record
-        : RECORD { print(attribute_or_record); }                                        
-        | ATTRIBUTE { print(attribute_or_record); }                                        
-        ;
-
-attribute_or_record_declaration_list
-        : attribute_or_record_declaration { print(attribute_or_record_declaration_list); }                                        
-        | attribute_or_record_declaration_list attribute_or_record_declaration
-          { print(attribute_or_record_declaration_list); }                                        
-        ;
-
-attribute_or_record_declaration
-        : specifier_qualifier_list attribute_or_record_declarator_list ';'
-          { print(attribute_or_record_declaration); }                                                
-        ;
-
-specifier_qualifier_list
-        : type_specifier specifier_qualifier_list
-          { print(specifier_qualifier_list); }                                                        
-        | type_specifier
-          { print(specifier_qualifier_list); }                                                        
-        | type_qualifier specifier_qualifier_list
-          { print(specifier_qualifier_list); }                                                        
-        | type_qualifier
-          { print(specifier_qualifier_list); }                                                        
-        ;
-
-attribute_or_record_declarator_list
-        : attribute_or_record_declarator
-          { print(attribute_or_record_declarator); }                                                                
-        | attribute_or_record_declarator_list ',' attribute_or_record_declarator
-          { print(attribute_or_record_declarator); }                                                                
-        ;
-
-
-attribute_or_record_declarator
-        : declarator           { print(attribute_or_record_declarator); }    
-        ;
-
-
-catalog_specifier
-        : CATALOG '{' catalog_list '}' { print(catalog_specifier); }    
-        | CATALOG ID '{' catalog_list '}' { print(catalog_specifier); }    
-        ; 
-
-catalog_list
-        : catalog_constant { print(catalog_list); }    
-        | catalog_list ',' catalog_constant { print(catalog_list); }    
-        ;
-
-catalog_constant
-        : ID { print(catalog_constant); }    
-        | ID '=' constant_expression { print(catalog_constant); }    
-        ;
-
-type_qualifier
-        : CONST { print(attribute_or_record_declarator); }    
-        ;
-
-declarator
-        : ID { print(declarator); }    
-        | '(' declarator ')' { print(declarator); }    
-        | declarator '[' expression ']' { print(declarator); }    
-        | declarator '[' ']' { print(declarator); }    
-        | declarator '(' parameter_type_list ')' { print(declarator); }    
-        | declarator '(' identifier_list ')' { print(declarator); }    
-        | declarator '(' ')' { print(declarator); }    
-        ;
-
-
-parameter_type_list
-        : parameter_list { print(parameter_type_list); }    
-        ;
-
-parameter_list
-        : parameter_declaration { print(parameter_list); }    
-        | parameter_list ',' parameter_declaration { print(parameter_list); }    
-        ;
-
-
-parameter_declaration
-        : declaration_specifiers declarator { print(parameter_declaration); }    
-        ;
-
-identifier_list
-        : ID { print(identifier_list); }    
-        | identifier_list ',' ID { print(identifier_list); }    
-        ;
-
-initializer
-        : assignment_expression { print(initializer); }    
-        | '{' initializer_list '}' { print(initializer); }    
-        ;
-
-initializer_list
-        : initializer { print(initializer_list); }    
-        | initializer_list ',' initializer { print(initializer_list); }    
-        ;
-
-statement
-        : labeled_statement { print(statement); }    
-        | expression_statement { print(statement); }    
-        | block_statement { print(statement); }    
-        | selection_statement { print(statement); }    
-        | iteration_statement { print(statement); }    
-        | jump_statement { print(statement); }    
-        ;
-        
-labeled_statement
-        : KEY constant_expression '?' statement { print(labeled_statement); }    
-        | UNKNOWN '?' statement { print(labeled_statement); }    
-        ;
-
-expression_statement
-        : ';' { print(expression_statement); }    
-        | expression ';' { print(expression_statement); }    
-        ;
-
-block_statement
-	: '{' declaration_list_or_statement_list '}' { print(block_statement); } 
-        | '{' '}' { print(block_statement); } 
-        ;
-
-declaration_list_or_statement_list
-        : declaration { print(declaration_list); }
-        | declaration_list_or_statement_list declaration { print(declaration_list); }
-        | statement { print(statement_list); }    
-        | declaration_list_or_statement_list statement { print(statement_list); }    
-        ;
-
-selection_statement
-        : IF '(' expression ')' THEN statement { print(selection_statement); }    
-        | IF '(' expression ')' THEN statement ELSE statement { print(selection_statement); }    
-        | LOOKUP '(' expression ')' statement { print(selection_statement); }    
-        ;
-
-
-iteration_statement
-        : REPEAT statement UNTIL '(' expression ')' ';' { print(iteration_statement); }    
-        | FOREACH ID statement { print(iteration_statement); }    
-        | FOREACH ID IN ID statement { print(iteration_statement); }    
-        | LOOP constant_expression statement { print(iteration_statement); }    
-        ;
-
-jump_statement
-        : LOOPBACK ';' { print(jump_statement); }    
-        | FALLTHROUGH ';' { print(jump_statement); }    
-        | ENDLOOP ';' { print(jump_statement); }    
-        | ENDLOOKUP ';' { print(jump_statement); }    
-        | RETURN expression ';' { print(jump_statement); }    
-        | RETURN ';' { print(jump_statement); }    
-        ;
-
-        
-translation_unit
-        : elements { print(translation_unit); }    
-        | translation_unit elements { print(translation_unit); }    
-        ;
-
-elements
-        : function_definition { print(elements); }    
-        | procedure_definition { print(elements); }    
-        | declaration { print(elements); }    
-        ;
-
-function_definition
-        : declaration_specifiers declarator block_statement { print(function_definition); }    
-        ;  
-
-procedure_definition
-        : ID block_statement { print(procedure_definition); }    
-        ;   
-
+jump_statement: LOOPBACK SEMI
+                | ENDLOOP SEMI
+                | RETURN expression /*;*/
+                | RETURN SEMI
+                ;
 %%
 
-#include "../lexer/lex.yy.c"
-
-int yyerror(char *s) {
-    fprintf(stderr, "%s\n", s);
-    printf("Compile-time error(Unrecognized pattern - without quotes): "
-							"\"%s\"\n", yytext);
-    exit(0);
-    return 0;
-}
-
-
-int yywrap(void)
-{
-    return 0;
-}
-
-void display(char *s, int line)
-{
-        printf("%s : %d\n", s, line);
-        return;
-}
-
-int main(void)
-{
-	yyparse();
-	return 0;
-}
-                          
